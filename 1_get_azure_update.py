@@ -3,6 +3,19 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timezone  
 from dateutil import parser  
 import argparse
+import re
+
+def sanitize_filename(name):
+    """Sanitize a string for use in a filename by removing or replacing unsafe characters."""
+    # Replace spaces with underscores
+    name = name.replace(" ", "_")
+    # Remove any characters that are not alphanumeric, underscores, or hyphens
+    name = re.sub(r'[^\w\-]', '', name)
+    return name
+
+def escape_odata_string(value):
+    """Escape a string for use in an OData filter by doubling single quotes."""
+    return value.replace("'", "''")
 
 def main():  
     arg_parser = argparse.ArgumentParser(description="Azure更新情報を取得してMarkdownファイルに出力します。")
@@ -21,8 +34,9 @@ def main():
     base_url = "https://www.microsoft.com/releasecommunications/api/v2/azure?$count=true&includeFacets=true&top=50&skip=0&orderby=modified%20desc"
     
     if args.product:
-        # Use OData filter to filter by product
-        product_filter = f"$filter=products/any(p:p eq '{args.product}')"
+        # Use OData filter to filter by product (escape single quotes to prevent injection)
+        escaped_product = escape_odata_string(args.product)
+        product_filter = f"$filter=products/any(p:p eq '{escaped_product}')"
         url = f"{base_url}&{product_filter}"
     else:
         url = base_url  
@@ -59,8 +73,8 @@ def main():
  
     # Generate output filename (include product name if filtering by product)
     if args.product:
-        # Sanitize product name for filename (replace spaces with underscores, remove special chars)
-        product_safe = args.product.replace(" ", "_").replace("/", "_")
+        # Sanitize product name for filename using secure sanitization function
+        product_safe = sanitize_filename(args.product)
         output_filename = f"azure_update_{product_safe}_{filter_date_str}_{datetime.now().strftime('%Y%m%d')}.md"
         print(f"製品 '{args.product}' でフィルタリングしています...")
     else:
