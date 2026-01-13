@@ -48,6 +48,24 @@ python 1_get_azure_update.py 2025-01-01
 
 このコマンドは、更新情報を含むMarkdownファイルを作成します。
 
+#### 製品フィルタリング
+
+特定のAzure製品に関する更新のみを取得したい場合は、`--product`（または `-p`）オプションを使用して製品名を指定できます：
+
+```sh
+python 1_get_azure_update.py 2025-01-01 --product "API Management"
+```
+
+または短縮形：
+
+```sh
+python 1_get_azure_update.py 2025-01-01 -p "API Management"
+```
+
+このオプションを使用すると、指定した製品に関連する更新のみがフィルタリングされ、出力ファイル名にも製品名が含まれます（例: `azure_update_API_Management_20250101_20250122.md`）。
+
+利用可能な製品名は、[Azure Updates](https://azure.microsoft.com/en-us/updates/) ページの製品フィルターで確認できます。
+
 ### ステップ2: プレゼンテーションデッキの生成
 
 `2_make_jp_update_pptx.py` スクリプトを実行して、取得した更新情報を生成AIをつかって処理し、PowerPoint形式のプレゼンテーションデッキを生成します。
