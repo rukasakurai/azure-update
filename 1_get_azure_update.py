@@ -4,13 +4,14 @@ from datetime import datetime, timezone
 from dateutil import parser  
 import argparse
 import re
+from urllib.parse import quote
 
 def sanitize_filename(name):
     """Sanitize a string for use in a filename by removing or replacing unsafe characters."""
     # Replace spaces with underscores
     name = name.replace(" ", "_")
-    # Remove any characters that are not alphanumeric, underscores, or hyphens
-    name = re.sub(r'[^\w\-]', '', name)
+    # Remove any characters that are not ASCII alphanumeric, underscores, or hyphens
+    name = re.sub(r'[^a-zA-Z0-9_\-]', '', name)
     return name
 
 def escape_odata_string(value):
@@ -34,10 +35,11 @@ def main():
     base_url = "https://www.microsoft.com/releasecommunications/api/v2/azure?$count=true&includeFacets=true&top=50&skip=0&orderby=modified%20desc"
     
     if args.product:
-        # Use OData filter to filter by product (escape single quotes to prevent injection)
+        # Use OData filter to filter by product
+        # Escape single quotes for OData string and URL encode the entire filter
         escaped_product = escape_odata_string(args.product)
-        product_filter = f"$filter=products/any(p:p eq '{escaped_product}')"
-        url = f"{base_url}&{product_filter}"
+        product_filter = quote(f"products/any(p:p eq '{escaped_product}')", safe='')
+        url = f"{base_url}&$filter={product_filter}"
     else:
         url = base_url  
     headers = {  
