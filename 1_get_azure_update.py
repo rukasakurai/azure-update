@@ -12,6 +12,9 @@ def sanitize_filename(name):
     name = name.replace(" ", "_")
     # Remove any characters that are not ASCII alphanumeric, underscores, or hyphens
     name = re.sub(r'[^a-zA-Z0-9_\-]', '', name)
+    # Ensure the result is not empty
+    if not name:
+        name = "product"
     return name
 
 def escape_odata_string(value):
