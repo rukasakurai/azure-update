@@ -2,21 +2,49 @@ import requests
 from bs4 import BeautifulSoup  
 from datetime import datetime, timezone  
 from dateutil import parser  
-import sys
+import argparse
+import re
+from urllib.parse import quote
+
+def sanitize_filename(name):
+    """Sanitize a string for use in a filename by removing or replacing unsafe characters."""
+    # Replace spaces with underscores
+    name = name.replace(" ", "_")
+    # Remove any characters that are not ASCII alphanumeric, underscores, or hyphens
+    name = re.sub(r'[^a-zA-Z0-9_\-]', '', name)
+    # Ensure the result is not empty
+    if not name:
+        name = "product"
+    return name
+
+def escape_odata_string(value):
+    """Escape a string for use in an OData filter by doubling single quotes."""
+    return value.replace("'", "''")
 
 def main():  
-    if len(sys.argv) < 2:  
-        print("エラー: 日付を引数として指定してください。形式: YYYY-MM-DD")  
-        return  
+    arg_parser = argparse.ArgumentParser(description="Azure更新情報を取得してMarkdownファイルに出力します。")
+    arg_parser.add_argument("date", help="フィルター日付（形式: YYYY-MM-DD）")
+    arg_parser.add_argument("--product", "-p", help="製品名でフィルター（例: 'API Management'）")
+    args = arg_parser.parse_args()
 
     try:  
-        filter_date = datetime.strptime(sys.argv[1], "%Y-%m-%d").replace(tzinfo=timezone.utc)  
+        filter_date = datetime.strptime(args.date, "%Y-%m-%d").replace(tzinfo=timezone.utc)  
         filter_date_str = filter_date.strftime("%Y%m%d")  
     except ValueError:  
         print("エラー: 日付の形式が正しくありません。形式: YYYY-MM-DD")  
         return  
 
-    url = "https://www.microsoft.com/releasecommunications/api/v2/azure?$count=true&includeFacets=true&top=50&skip=0&orderby=modified%20desc"  
+    # Build the API URL with optional product filter
+    base_url = "https://www.microsoft.com/releasecommunications/api/v2/azure?$count=true&includeFacets=true&top=50&skip=0&orderby=modified%20desc"
+    
+    if args.product:
+        # Use OData filter to filter by product
+        # Escape single quotes for OData string and URL encode the entire filter
+        escaped_product = escape_odata_string(args.product)
+        product_filter = quote(f"products/any(p:p eq '{escaped_product}')", safe='')
+        url = f"{base_url}&$filter={product_filter}"
+    else:
+        url = base_url  
     headers = {  
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',  
         'Accept': 'application/json, text/plain, */*',  
@@ -48,7 +76,14 @@ def main():
         "Public Preview": "パブリックプレビュー",  
     }  
  
-    output_filename = f"azure_update_{filter_date_str}_{datetime.now().strftime('%Y%m%d')}.md"
+    # Generate output filename (include product name if filtering by product)
+    if args.product:
+        # Sanitize product name for filename using secure sanitization function
+        product_safe = sanitize_filename(args.product)
+        output_filename = f"azure_update_{product_safe}_{filter_date_str}_{datetime.now().strftime('%Y%m%d')}.md"
+        print(f"製品 '{args.product}' でフィルタリングしています...")
+    else:
+        output_filename = f"azure_update_{filter_date_str}_{datetime.now().strftime('%Y%m%d')}.md"
     with open(output_filename, "w", encoding="utf-8") as f:  # ファイルを最初に開く
         for item in data["value"]:  
             modified_date = item.get("modified", "")  
