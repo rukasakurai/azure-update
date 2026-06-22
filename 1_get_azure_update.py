@@ -40,7 +40,7 @@ def main():
         skip = 0
         while True:
             url = base_url.format(skip=skip)
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=30)
 
             if response.status_code != 200:
                 print(f"エラー: データを取得できませんでした。ステータスコード: {response.status_code}")
