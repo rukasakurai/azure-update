@@ -4,6 +4,37 @@ from datetime import datetime, timezone
 from dateutil import parser  
 import sys
 
+def fetch_update_items(base_url, headers, page_size, filter_date):
+    """ページを順にたどり、フィルター日付より古い更新に到達するまで項目を返す。"""
+    skip = 0
+    while True:
+        response = requests.get(base_url.format(skip=skip), headers=headers, timeout=30)
+
+        if response.status_code != 200:
+            print(f"エラー: データを取得できませんでした。ステータスコード: {response.status_code}")
+            print(f"レスポンスの内容:\n{response.text}")
+            return
+
+        try:
+            data = response.json()
+        except ValueError:
+            print("エラー: レスポンスから JSON をデコードできませんでした。")
+            print(f"レスポンスの内容:\n{response.text}")
+            return
+
+        items = data.get("value", [])
+        if not items:
+            return
+
+        yield from items
+
+        last_modified = items[-1].get("modified", "")
+        if last_modified and parser.isoparse(last_modified) < filter_date:
+            return
+
+        skip += page_size
+
+
 def main():  
     if len(sys.argv) < 2:  
         print("エラー: 日付を引数として指定してください。形式: YYYY-MM-DD")  
@@ -16,7 +47,8 @@ def main():
         print("エラー: 日付の形式が正しくありません。形式: YYYY-MM-DD")  
         return  
 
-    url = "https://www.microsoft.com/releasecommunications/api/v2/azure?$count=true&includeFacets=true&top=50&skip=0&orderby=modified%20desc"  
+    page_size = 50
+    base_url = f"https://www.microsoft.com/releasecommunications/api/v2/azure?$count=true&includeFacets=true&top={page_size}&skip={{skip}}&orderby=modified%20desc"
     headers = {  
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',  
         'Accept': 'application/json, text/plain, */*',  
@@ -24,20 +56,6 @@ def main():
         'Referer': 'https://www.microsoft.com/ja-jp/releasecommunications/azure',  
         'Origin': 'https://www.microsoft.com'  
     }  
- 
-    response = requests.get(url, headers=headers)  
- 
-    if response.status_code != 200:  
-        print(f"エラー: データを取得できませんでした。ステータスコード: {response.status_code}")  
-        print(f"レスポンスの内容:\n{response.text}")  
-        return  
- 
-    try:  
-        data = response.json()  
-    except ValueError:  
-        print("エラー: レスポンスから JSON をデコードできませんでした。")  
-        print(f"レスポンスの内容:\n{response.text}")  
-        return  
  
     status_translations = {  
         "Launched": "一般提供",  
@@ -50,7 +68,7 @@ def main():
  
     output_filename = f"azure_update_{filter_date_str}_{datetime.now().strftime('%Y%m%d')}.md"
     with open(output_filename, "w", encoding="utf-8") as f:  # ファイルを最初に開く
-        for item in data["value"]:  
+        for item in fetch_update_items(base_url, headers, page_size, filter_date):  
             modified_date = item.get("modified", "")  
             if modified_date:  
                 try:  
