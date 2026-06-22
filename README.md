@@ -6,7 +6,8 @@
 
 - Python 3.7以上
 - pip (Pythonパッケージインストーラー)
-- Azure OpenAIアカウントとAPIキー、エンドポイント
+- Azure CLI（`az` コマンド。`az login` によるEntra ID認証に必要）
+- Azure OpenAIアカウントとエンドポイント
 
 ## セットアップ
 
