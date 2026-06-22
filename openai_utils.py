@@ -1,14 +1,20 @@
 from pydantic import BaseModel
 from openai import AzureOpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
 import os
 import tiktoken
 
 load_dotenv()
 
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+)
+
 azure_openai_client = AzureOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    azure_ad_token_provider=token_provider,
     api_version="2024-12-01-preview"
 )
 

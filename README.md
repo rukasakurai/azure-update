@@ -6,7 +6,8 @@
 
 - Python 3.7以上
 - pip (Pythonパッケージインストーラー)
-- Azure OpenAIアカウントとAPIキー、エンドポイント
+- Azure CLI（`az` コマンド。`az login` によるEntra ID認証に必要）
+- Azure OpenAIアカウントとエンドポイント
 
 ## セットアップ
 
@@ -27,13 +28,18 @@
     pip install -r requirements.txt
     ```
 
-4. プロジェクトのルートディレクトリに `.env` ファイルを作成し、Azure OpenAIの認証情報を追加します:
+4. プロジェクトのルートディレクトリに `.env` ファイルを作成し、Azure OpenAIの設定を追加します:
     ```env
     AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
-    AZURE_OPENAI_API_KEY=your_azure_openai_api_key
     MODEL_DEPLOYMENT_NAME=your_azure_openai_model
     ```
     ※動作検証にはgpt-4oを利用しました。
+
+5. 認証はEntra ID（キーレス）を使用します。`DefaultAzureCredential` でトークンを取得するため、事前にサインインしてください:
+    ```sh
+    az login
+    ```
+    サインインするIDには、対象のAzure OpenAIリソースに対して `Cognitive Services OpenAI User` ロールが必要です。
 
 ## 使用方法
 
