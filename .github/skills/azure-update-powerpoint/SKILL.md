@@ -23,6 +23,25 @@ Advance it by one day only when the user explicitly requests no overlap.
 If no standard deck exists for the latest period, stop instead of inferring a
 baseline from another kind of artifact.
 
+## Resolve ambiguous statuses
+
+After fetching, search the generated Markdown for `<!-- status-review`.
+If none exists, continue to PowerPoint generation.
+
+For each flagged entry:
+
+1. Read its existing reference links first.
+2. If necessary, search official Microsoft documentation for explicit
+   lifecycle wording.
+3. Change `要確認` to one of `一般提供`, `パブリックプレビュー`,
+   `プライベートプレビュー`, `開発中`, `リタイアメント`, or
+   `その他の更新`.
+4. Add the official evidence URL under `参考リンク` if it is not already
+   present, then remove the `status-review` comment.
+
+Do not change unflagged categories. If official sources do not resolve the
+category, leave the entry flagged rather than guessing.
+
 ## Run reliably
 
 - Run the README workflow directly. Add diagnostic commands only after a

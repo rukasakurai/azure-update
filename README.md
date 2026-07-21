@@ -7,7 +7,7 @@
 - Python 3.7以上
 - pip (Pythonパッケージインストーラー)
 - Azure CLI（`az` コマンド。`az login` によるEntra ID認証に必要）
-- Azure OpenAIアカウントとエンドポイント
+- Microsoft Foundry リソースとモデルデプロイ
 
 ## セットアップ
 
@@ -28,18 +28,18 @@
     pip install -r requirements.txt
     ```
 
-4. プロジェクトのルートディレクトリに `.env` ファイルを作成し、Azure OpenAIの設定を追加します:
+4. プロジェクトのルートディレクトリに `.env` ファイルを作成し、Microsoft Foundryの設定を追加します:
     ```env
-    AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
-    MODEL_DEPLOYMENT_NAME=your_azure_openai_model
+    AZURE_OPENAI_ENDPOINT=your_foundry_endpoint
+    MODEL_DEPLOYMENT_NAME=your_model_deployment
     ```
-    ※動作検証にはgpt-4oを利用しました。
+    `AZURE_OPENAI_ENDPOINT` は既存コードとの互換性のための環境変数名です。値には Microsoft Foundry のエンドポイントを指定します。
 
 5. 認証はEntra ID（キーレス）を使用します。`DefaultAzureCredential` でトークンを取得するため、事前にサインインしてください:
     ```sh
     az login
     ```
-    サインインするIDには、対象のAzure OpenAIリソースに対して `Cognitive Services OpenAI User` ロールが必要です。
+    サインインするIDには、対象のMicrosoft Foundryリソースでモデルを呼び出すための権限が必要です。
 
 ## 使用方法
 
@@ -52,11 +52,17 @@
 python 1_get_azure_update.py 2025-01-01
 ```
 
-このコマンドは、更新情報を含むMarkdownファイルを作成します。
+このコマンドは、更新情報を含むMarkdownファイルを作成します。タイトルの区分には `一般提供`、`パブリックプレビュー`、`プライベートプレビュー`、`開発中`、`リタイアメント` を使用します。
 
-### ステップ2: プレゼンテーションデッキの生成
+### ステップ2: ステータスの確認（必要な場合）
 
-`2_make_jp_update_pptx.py` スクリプトを実行して、取得した更新情報を生成AIをつかって処理し、PowerPoint形式のプレゼンテーションデッキを生成します。
+取得元のタイトル、APIステータス、提供段階が一致しない場合、Markdownには `<!-- status-review` コメントと `要確認` 区分が追加されます。
+
+このリポジトリの `azure-update-powerpoint` Agent Skill を利用すると、既存の参考リンクと公式Microsoftドキュメントを調査し、`一般提供`、`パブリックプレビュー`、`プライベートプレビュー`、`開発中`、`リタイアメント`、または `その他の更新` に更新できます。該当コメントがなければ、このステップは不要です。
+
+### ステップ3: プレゼンテーションデッキの生成
+
+`2_make_jp_update_pptx.py` スクリプトを実行して、取得した更新情報をMicrosoft Foundryのモデルで処理し、PowerPoint形式のプレゼンテーションデッキを生成します。タイトル本文のみを翻訳し、Markdownで確定した区分はそのまま使用します。
 
 ```sh
 python 2_make_jp_update_pptx.py

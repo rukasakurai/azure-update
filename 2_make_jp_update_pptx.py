@@ -1,9 +1,7 @@
 import os  
+import re
 import sys  
 import time
-from openai import AzureOpenAI  
-from dotenv import load_dotenv, find_dotenv  
-_ = load_dotenv(find_dotenv())  
   
 from pydantic import BaseModel  
 from openai_utils import get_parsed_completion  
@@ -13,6 +11,39 @@ from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor  
 from pptx.enum.text import MSO_AUTO_SIZE  # 追加  
 from pptx.enum.text import PP_ALIGN
+
+STATUS_REVIEW_PATTERN = re.compile(
+    r"<!--\s*status-review\b.*?-->\s*",
+    re.DOTALL,
+)
+
+
+def strip_status_review_comments(slide_text):
+    return STATUS_REVIEW_PATTERN.sub("", slide_text)
+
+
+def prepare_slide_prompt(slide_text):
+    cleaned_slide = strip_status_review_comments(slide_text).strip()
+    lines = cleaned_slide.splitlines()
+    if not lines:
+        return "", ""
+
+    heading = lines[0].strip()
+    if heading.startswith("#"):
+        heading = heading.lstrip("#").strip()
+
+    category, separator, title = heading.partition(":")
+    if not separator:
+        return "", cleaned_slide
+
+    lines[0] = f"# {title.strip()}"
+    return category.strip(), "\n".join(lines).strip()
+
+
+def format_slide_title(category, translated_title):
+    if not category:
+        return translated_title
+    return f"{category}: {translated_title}"
   
 class UpdateInformation(BaseModel):  
     title: str  
@@ -84,7 +115,7 @@ def main():
 入力された情報はあるAzureの機能更新情報です。この情報を以下のルールで更新して指定されたキーのJSONを回答してください  
   
 # ルール  
-- title: タイトル(先頭行): なるべくそのままの表現で日本語に翻訳する  
+- title: 先頭行の機能名だけを、なるべくそのままの表現で日本語に翻訳する。ライフサイクル区分は追加しない
 - target: 更新対象機能 : 元の情報のまま  
 - date: 更新日付: 元の情報のまま  
 - description: 更新内容: 日本語で３行程度に要約する  
@@ -100,9 +131,9 @@ def main():
   
     start_time = time.time()
     for i, slide_text in enumerate(slides, 1):  
-        user_prompt = slide_text.strip()
+        category, user_prompt = prepare_slide_prompt(slide_text)
         print_progress(i, total_slides, start_time)
-        # OpenAI APIを呼び出して、情報を取得  
+        # Microsoft Foundryモデルを呼び出して、情報を取得
         event, input_token, output_token = callGPT(system_prompt, user_prompt)  
   
         # スライド作成  
@@ -125,7 +156,7 @@ def main():
         title_frame = title_box.text_frame  
         title_frame.word_wrap = True  
         p = title_frame.paragraphs[0]  
-        p.text = event.title  
+        p.text = format_slide_title(category, event.title)
         p.font.size = Pt(28)  
         p.font.bold = True  
         p.font.name = 'Meiryo UI'  # フォント設定  

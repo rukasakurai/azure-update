@@ -2,7 +2,220 @@ import requests
 from bs4 import BeautifulSoup  
 from datetime import datetime, timezone  
 from dateutil import parser  
+import re
 import sys
+
+STATUS_LABELS = {
+    "launched": "一般提供",
+    "in preview": "パブリックプレビュー",
+    "in development": "開発中",
+}
+
+AVAILABILITY_LABELS = {
+    "general availability": "一般提供",
+    "preview": "パブリックプレビュー",
+    "public preview": "パブリックプレビュー",
+    "private preview": "プライベートプレビュー",
+    "retirement": "リタイアメント",
+}
+
+TITLE_PREFIX_LABELS = (
+    ("Generally Available", "一般提供"),
+    ("General Availability", "一般提供"),
+    ("Public Preview", "パブリックプレビュー"),
+    ("Private Preview", "プライベートプレビュー"),
+    ("In Development", "開発中"),
+    ("Retirement", "リタイアメント"),
+    ("Preview", "パブリックプレビュー"),
+    ("GA", "一般提供"),
+)
+
+EDITORIAL_PREFIXES = ("Announcing", "New")
+REVIEW_CATEGORY_LABEL = "要確認"
+PREVIEW_LABELS = {"パブリックプレビュー", "プライベートプレビュー"}
+
+
+def extract_title_signals(raw_title):
+    """タイトルを表示用本文、接頭辞、ライフサイクル区分に分ける。"""
+    title = raw_title.lstrip("\ufeff\u200b").strip()
+
+    for prefix, label in TITLE_PREFIX_LABELS:
+        match = re.match(rf"^{re.escape(prefix)}\s*:\s*", title, re.IGNORECASE)
+        if match:
+            return title[match.end():].strip(), prefix, label
+
+    for prefix in EDITORIAL_PREFIXES:
+        match = re.match(rf"^{re.escape(prefix)}\s*:\s*", title, re.IGNORECASE)
+        if match:
+            displayed_title = (
+                title if prefix == "Announcing" else title[match.end():].strip()
+            )
+            return displayed_title, prefix, None
+
+    return title, None, None
+
+
+def get_availability_signals(item):
+    rings = []
+    labels = []
+
+    for availability in item.get("availabilities") or []:
+        ring = (availability.get("ring") or "").strip()
+        if not ring:
+            continue
+
+        rings.append(ring)
+        label = AVAILABILITY_LABELS.get(ring.casefold())
+        if label and label not in labels:
+            labels.append(label)
+
+    return rings, labels
+
+
+def labels_are_compatible(title_label, status_label):
+    if title_label == status_label:
+        return True
+
+    return status_label == "パブリックプレビュー" and title_label in PREVIEW_LABELS
+
+
+def availability_supports_label(
+    label,
+    availability_labels,
+    include_private_preview=False,
+):
+    labels = set(availability_labels)
+    if label == "一般提供":
+        return "一般提供" in labels
+    if label == "パブリックプレビュー":
+        supported_preview_labels = {"パブリックプレビュー"}
+        if include_private_preview:
+            supported_preview_labels.add("プライベートプレビュー")
+        return (
+            bool(labels & supported_preview_labels)
+            and "一般提供" not in labels
+        )
+    if label == "プライベートプレビュー":
+        return (
+            "プライベートプレビュー" in labels
+            and "パブリックプレビュー" not in labels
+            and "一般提供" not in labels
+        )
+    if label == "開発中":
+        return "開発中" in labels
+    if label == "リタイアメント":
+        return "リタイアメント" in labels
+    return False
+
+
+def normalize_update_status(item):
+    """APIの複数シグナルから表示区分を決め、曖昧な場合は確認情報を返す。"""
+    title, title_prefix, title_label = extract_title_signals(
+        item.get("title", "")
+    )
+    raw_status = (item.get("status") or "").strip()
+    status_label = STATUS_LABELS.get(raw_status.casefold())
+    rings, availability_labels = get_availability_signals(item)
+    tags = item.get("tags") or []
+    tag_names = {tag.casefold() for tag in tags}
+
+    retirement_tag = "retirements" in tag_names
+    announcement_signal = (
+        (title_prefix or "").casefold() == "announcing"
+        or "announcement" in tag_names
+    )
+
+    category_label = None
+    candidate_label = None
+    review_reason = None
+
+    if title_label:
+        if status_label and not labels_are_compatible(
+            title_label, status_label
+        ):
+            candidate_label = title_label
+            review_reason = "title prefix and API status disagree"
+        elif availability_labels and not availability_supports_label(
+            title_label, availability_labels
+        ):
+            candidate_label = title_label
+            review_reason = "title prefix and availability disagree"
+        else:
+            category_label = title_label
+    elif announcement_signal:
+        if status_label and availability_supports_label(
+            status_label,
+            availability_labels,
+            include_private_preview=True,
+        ):
+            category_label = status_label
+            if (
+                status_label == "パブリックプレビュー"
+                and set(availability_labels) == {"プライベートプレビュー"}
+            ):
+                category_label = "プライベートプレビュー"
+        else:
+            candidate_label = status_label
+            review_reason = "announcement lifecycle is not corroborated"
+    elif status_label:
+        if availability_labels and not availability_supports_label(
+            status_label,
+            availability_labels,
+            include_private_preview=True,
+        ):
+            candidate_label = status_label
+            review_reason = "API status and availability disagree"
+        else:
+            category_label = status_label
+            if (
+                status_label == "パブリックプレビュー"
+                and set(availability_labels) == {"プライベートプレビュー"}
+            ):
+                category_label = "プライベートプレビュー"
+    elif len(availability_labels) == 1:
+        category_label = availability_labels[0]
+    elif retirement_tag:
+        category_label = "リタイアメント"
+    else:
+        review_reason = "no lifecycle category was found"
+
+    review = None
+    if review_reason:
+        review = {
+            "reason": review_reason,
+            "status": raw_status,
+            "title_prefix": title_prefix or "",
+            "availability": rings,
+            "tags": tags,
+            "id": str(item.get("id") or ""),
+            "candidate": candidate_label or "",
+        }
+
+    return {
+        "category": category_label or REVIEW_CATEGORY_LABEL,
+        "title": title,
+        "review": review,
+    }
+
+
+def format_status_review(review):
+    if not review:
+        return ""
+
+    availability = ", ".join(review["availability"]) or "(none)"
+    tags = ", ".join(review["tags"]) or "(none)"
+    return (
+        "<!-- status-review\n"
+        f"reason: {review['reason']}\n"
+        f"status: {review['status'] or '(none)'}\n"
+        f"title-prefix: {review['title_prefix'] or '(none)'}\n"
+        f"availability: {availability}\n"
+        f"tags: {tags}\n"
+        f"id: {review['id'] or '(none)'}\n"
+        f"candidate: {review['candidate'] or '(none)'}\n"
+        "-->\n"
+    )
+
 
 def fetch_update_items(base_url, headers, page_size, filter_date):
     """ページを順にたどり、フィルター日付より古い更新に到達するまで項目を返す。"""
@@ -57,15 +270,6 @@ def main():
         'Origin': 'https://www.microsoft.com'  
     }  
  
-    status_translations = {  
-        "Launched": "一般提供",  
-        "In preview": "パブリックプレビュー",  
-        "Retirement": "リタイアメント",  
-        "Private Preview": "プライベートプレビュー",  
-        "General Availability": "一般提供",  
-        "Public Preview": "パブリックプレビュー",  
-    }  
- 
     output_filename = f"azure_update_{filter_date_str}_{datetime.now().strftime('%Y%m%d')}.md"
     with open(output_filename, "w", encoding="utf-8") as f:  # ファイルを最初に開く
         for item in fetch_update_items(base_url, headers, page_size, filter_date):  
@@ -82,26 +286,12 @@ def main():
             else:  
                 date_str = "不明"  
      
-            # ステータスの抽出  
-            status = item.get("status", "")  
-            if not status:  
-                # ステータスがない場合は availabilities から取得  
-                if item.get("availabilities"):  
-                    status = item["availabilities"][0].get("ring", "")  
-     
-            # ステータスを日本語に翻訳  
-            status_jp = status_translations.get(status, status)  
-     
-            # タイトルから不要なプレフィックスを除去  
-            title = item.get("title", "").strip()  
-            prefixes = ["Generally Available:", "Public Preview:", "Private Preview:", "Retirement:", "GA:", "New:"]  
-            for prefix in prefixes:  
-                if title.startswith(prefix):  
-                    title = title[len(prefix):].strip()  
-                    break  # 最初のマッチで停止  
-     
-            # スライドタイトルの作成  
-            slide_title = f"# {status_jp}: {title}"  
+            status_resolution = normalize_update_status(item)
+            slide_title = (
+                f"# {status_resolution['category']}: "
+                f"{status_resolution['title']}"
+            )
+            status_review = format_status_review(status_resolution["review"])
      
             # 更新対象機能の抽出  
             products = item.get("products", [])  
@@ -119,7 +309,8 @@ def main():
                 reference_links.append(link['href'])  
      
             # スライドの内容を構築  
-            slide_content = f"""{slide_title}  
+            slide_content = f"""{slide_title}
+{status_review}
      
     ## 更新対象機能  
     {features_text}  
