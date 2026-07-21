@@ -12,7 +12,7 @@ token_provider = get_bearer_token_provider(
     "https://cognitiveservices.azure.com/.default"
 )
 
-azure_openai_client = AzureOpenAI(
+foundry_client = AzureOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     azure_ad_token_provider=token_provider,
     api_version="2024-12-01-preview"
@@ -22,7 +22,7 @@ model_deployment_name = os.getenv("MODEL_DEPLOYMENT_NAME")
 
 def get_parsed_completion(messages: list[dict], response_format: BaseModel):
     """
-    Get parsed completion from Azure OpenAI.
+    Get parsed completion from the configured Microsoft Foundry model deployment.
 
     Args:
         messages (list[dict]): List of message dictionaries.
@@ -31,7 +31,7 @@ def get_parsed_completion(messages: list[dict], response_format: BaseModel):
     Returns:
         tuple: Parsed event, input token count, output token count.
     """
-    completion = azure_openai_client.beta.chat.completions.parse(
+    completion = foundry_client.beta.chat.completions.parse(
         model=model_deployment_name,
         messages=messages,
         response_format=response_format,

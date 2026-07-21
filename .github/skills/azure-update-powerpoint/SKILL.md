@@ -23,6 +23,25 @@ Advance it by one day only when the user explicitly requests no overlap.
 If no standard deck exists for the latest period, stop instead of inferring a
 baseline from another kind of artifact.
 
+## Resolve ambiguous statuses
+
+After fetching, search the generated Markdown for `<!-- status-review`.
+If none exists, continue to PowerPoint generation.
+
+For each flagged entry:
+
+1. Read its existing reference links first.
+2. If necessary, search official Microsoft documentation for explicit
+   lifecycle wording.
+3. Change `要確認` to one of `一般提供`, `パブリックプレビュー`,
+   `プライベートプレビュー`, `開発中`, `リタイアメント`, or
+   `その他の更新`.
+4. Add the official evidence URL under `参考リンク` if it is not already
+   present, then remove the `status-review` comment.
+
+Do not change unflagged categories. If official sources do not resolve the
+category, leave the entry flagged rather than guessing.
+
 ## Run reliably
 
 - Run the README workflow directly. Add diagnostic commands only after a
@@ -41,3 +60,22 @@ baseline from another kind of artifact.
 - Require the generated Markdown and PowerPoint files to be non-empty.
 - Verify that the PowerPoint slide count equals the number of non-empty
   Markdown sections separated by 50 equals signs.
+
+## Reference timing
+
+Two observed runs on 2026-07-21 used `gpt-5.6-sol` for 43 updates,
+including 13 status reviews:
+
+| Phase | Observed range |
+|---|---:|
+| Fetch | 15.2–31.6s |
+| Status scan | 11.0–17.5s |
+| Status research | 100.2–105.5s |
+| PowerPoint generation | 175.5–209.9s |
+| Validation | 32.8–48.4s |
+| Total | 5m 40s–6m 47.5s |
+
+This is a planning example, not a performance target. Generation time varies
+mainly with slide count and model latency; research time varies with the number
+and complexity of ambiguous statuses. Replace this example only when it is no
+longer representative. Do not accumulate run history here.
