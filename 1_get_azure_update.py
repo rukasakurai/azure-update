@@ -47,10 +47,7 @@ def extract_title_signals(raw_title):
     for prefix in EDITORIAL_PREFIXES:
         match = re.match(rf"^{re.escape(prefix)}\s*:\s*", title, re.IGNORECASE)
         if match:
-            displayed_title = (
-                title if prefix == "Announcing" else title[match.end():].strip()
-            )
-            return displayed_title, prefix, None
+            return title[match.end():].strip(), prefix, None
 
     return title, None, None
 

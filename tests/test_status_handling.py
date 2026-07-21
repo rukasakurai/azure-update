@@ -89,7 +89,7 @@ class NormalizeUpdateStatusTests(unittest.TestCase):
                     ["Announcement"],
                 ),
                 "一般提供",
-                "Announcing: Feature",
+                "Feature",
                 None,
             ),
             (
@@ -100,7 +100,7 @@ class NormalizeUpdateStatusTests(unittest.TestCase):
                     tags=["Announcement"],
                 ),
                 "要確認",
-                "Announcing: Feature",
+                "Feature",
                 "announcement lifecycle is not corroborated",
             ),
             (
@@ -165,6 +165,15 @@ class NormalizeUpdateStatusTests(unittest.TestCase):
                     self.assertEqual(review_reason, result["review"]["reason"])
                 else:
                     self.assertIsNone(result["review"])
+
+    def test_announcing_prefix_is_removed_from_display_title(self):
+        title, prefix, label = get_updates.extract_title_signals(
+            "Announcing: Feature"
+        )
+
+        self.assertEqual("Feature", title)
+        self.assertEqual("Announcing", prefix)
+        self.assertIsNone(label)
 
     def test_review_comment_contains_source_signals(self):
         result = get_updates.normalize_update_status(
