@@ -60,3 +60,22 @@ category, leave the entry flagged rather than guessing.
 - Require the generated Markdown and PowerPoint files to be non-empty.
 - Verify that the PowerPoint slide count equals the number of non-empty
   Markdown sections separated by 50 equals signs.
+
+## Reference timing
+
+One observed run on 2026-07-21 used `gpt-5.6-sol` for 43 updates,
+including 13 status reviews:
+
+| Phase | Time |
+|---|---:|
+| Fetch | 15.2s |
+| Status scan | 11.0s |
+| Status research | 105.5s |
+| PowerPoint generation | 175.5s |
+| Validation | 32.8s |
+| Total | 5m 40s |
+
+This is a planning example, not a performance target. Generation time varies
+mainly with slide count and model latency; research time varies with the number
+and complexity of ambiguous statuses. Replace this example only when it is no
+longer representative. Do not accumulate run history here.
