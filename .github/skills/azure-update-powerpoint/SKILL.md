@@ -47,9 +47,6 @@ Do not choose the baseline by creation time alone.
 5. If no valid deck exists, stop and explain that the baseline cannot be
    determined.
 
-The included `Get-AzureUpdatePlan.ps1` helper performs this inspection without
-creating or changing repository files.
-
 ## Apply the repository's date convention
 
 Use the previous deck's covered-through date as the next fetch start date.
