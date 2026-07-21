@@ -25,6 +25,8 @@ baseline from another kind of artifact.
 
 ## Run reliably
 
+- Run the README workflow directly. Add diagnostic commands only after a
+  documented command fails.
 - On Windows, set `PYTHONIOENCODING=utf-8` before fetching.
 - Always pass the exact generated Markdown filename to
   `2_make_jp_update_pptx.py`; do not rely on its creation-time-based automatic
