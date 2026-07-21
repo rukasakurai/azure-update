@@ -63,17 +63,17 @@ category, leave the entry flagged rather than guessing.
 
 ## Reference timing
 
-One observed run on 2026-07-21 used `gpt-5.6-sol` for 43 updates,
+Two observed runs on 2026-07-21 used `gpt-5.6-sol` for 43 updates,
 including 13 status reviews:
 
-| Phase | Time |
+| Phase | Observed range |
 |---|---:|
-| Fetch | 15.2s |
-| Status scan | 11.0s |
-| Status research | 105.5s |
-| PowerPoint generation | 175.5s |
-| Validation | 32.8s |
-| Total | 5m 40s |
+| Fetch | 15.2–31.6s |
+| Status scan | 11.0–17.5s |
+| Status research | 100.2–105.5s |
+| PowerPoint generation | 175.5–209.9s |
+| Validation | 32.8–48.4s |
+| Total | 5m 40s–6m 47.5s |
 
 This is a planning example, not a performance target. Generation time varies
 mainly with slide count and model latency; research time varies with the number
