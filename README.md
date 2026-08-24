@@ -2,6 +2,12 @@
 
 このプロジェクトは、Azureの更新情報を取得して処理し、PowerPoint形式のプレゼンテーションデッキを生成する2つのPythonスクリプトで構成されています。
 
+## GitHub Copilotで使う（推奨）
+
+セットアップ後、GitHub Copilotでこのリポジトリを開き、次のように依頼してください。`azure-update-powerpoint` Agent Skillに従って、更新情報の取得からPowerPointデッキの生成まで実行します。
+
+> 次回分のAzure Update PowerPointデッキを生成してください。
+
 ## 前提条件
 
 - Python 3.7以上
@@ -13,7 +19,7 @@
 
 1. リポジトリをクローンします:
     ```sh
-    git clone https://github.com/shyamagu/azure-update.git
+    git clone https://github.com/rukasakurai/azure-update.git
     cd azure-update
     ```
 
